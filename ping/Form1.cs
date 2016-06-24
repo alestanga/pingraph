@@ -18,6 +18,8 @@ namespace ping
         delegate void SetTextCallback(string ip, long ping, bool ok);
         Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series> serie;
         int i;
+        Point? prevPosition = null;
+        ToolTip tooltip = new ToolTip();
 
         public Form1()
         {
@@ -35,7 +37,8 @@ namespace ping
                 Color = GetRandomColor(),//colore random
                 IsVisibleInLegend = true,//lo mette in legenda
                 IsXValueIndexed = false,//decide se i dati devono essere allineati per asse X
-                ChartType = SeriesChartType.FastLine
+                MarkerStyle = MarkerStyle.Circle,
+            ChartType = SeriesChartType.Line
         };
             serie.Add(textBox1.Text, nuovaserie);//aggiunge la serie al dizionario
             this.chart1.Series.Add(serie[textBox1.Text]);//aggiunge la serie al grafico
@@ -68,7 +71,7 @@ namespace ping
                 {//timeout
                     this.SetText(reply.Address.ToString(), reply.RoundtripTime, false);
                 }
-                Thread.Sleep(1000);//intervallo in ms
+                Thread.Sleep(5000);//intervallo in ms
             }
         }
 
@@ -116,6 +119,37 @@ namespace ping
         {
             Random random = new Random();
             return Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255));
+        }
+
+        private void chart1_MouseMove(object sender, MouseEventArgs e)
+        {
+            var pos = e.Location;
+            if (prevPosition.HasValue && pos == prevPosition.Value)
+                return;
+            tooltip.RemoveAll();
+            prevPosition = pos;
+            var results = chart1.HitTest(pos.X, pos.Y, false,
+                                            ChartElementType.DataPoint);
+            foreach (var result in results)
+            {
+                if (result.ChartElementType == ChartElementType.DataPoint)
+                {
+                    var prop = result.Object as DataPoint;
+                    if (prop != null)
+                    {
+                        var pointXPixel = result.ChartArea.AxisX.ValueToPixelPosition(prop.XValue);
+                        var pointYPixel = result.ChartArea.AxisY.ValueToPixelPosition(prop.YValues[0]);
+
+                        // check if the cursor is really close to the point (5 pixels around the point)
+                        if (Math.Abs(pos.X - pointXPixel) < 5 &&
+                            Math.Abs(pos.Y - pointYPixel) < 5)
+                        {
+                            tooltip.Show("X=" + prop.XValue + ", Ping: " + prop.YValues[0], this.chart1,
+                                            pos.X, pos.Y - 15);
+                        }
+                    }
+                }
+            }
         }
     }
 }
