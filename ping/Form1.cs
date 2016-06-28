@@ -80,11 +80,12 @@ namespace ping
                 PingReply reply = pingSender.Send(parametri.ToString(), timeout, buffer, options);
                 if (reply.Status == IPStatus.Success)//risposta ricevuta
                 {
-                    this.SetText(reply.Address.ToString(), reply.RoundtripTime, true);
+                    //this.SetText(reply.Address.ToString(), reply.RoundtripTime, true);//risponde con l'indirizzo
+                    this.SetText(parametri.ToString(), reply.RoundtripTime, true);//risponde con il nome
                 }
                 else
                 {//timeout
-                    this.SetText(reply.Address.ToString(), reply.RoundtripTime, false);
+                    this.SetText(parametri.ToString(), reply.RoundtripTime, false);
                 }
                 Thread.Sleep(5000);//intervallo in ms
             }
