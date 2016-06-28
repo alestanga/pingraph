@@ -15,9 +15,22 @@ namespace ping
 {
     public partial class Form1 : Form
     {
+
+        List<string> p_tempo;
+
+        public class punto
+        {
+            public string p_ip { get; set; }
+            public long? p_ping { get; set; }
+        }
+
+        List<punto> lista_punti;
+
         delegate void SetTextCallback(string ip, long ping, bool ok);
         Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series> serie;
+
         int i;
+
         Point? prevPosition = null;
         ToolTip tooltip = new ToolTip();
 
@@ -36,17 +49,21 @@ namespace ping
                 Name = textBox1.Text,//nome della serie
                 Color = GetRandomColor(),//colore random
                 IsVisibleInLegend = true,//lo mette in legenda
-                IsXValueIndexed = false,//decide se i dati devono essere allineati per asse X
+                IsXValueIndexed = true,//decide se i dati devono essere allineati per asse X
                 MarkerStyle = MarkerStyle.Circle,
-            ChartType = SeriesChartType.Line
-        };
-            serie.Add(textBox1.Text, nuovaserie);//aggiunge la serie al dizionario
-            this.chart1.Series.Add(serie[textBox1.Text]);//aggiunge la serie al grafico
+                ChartType = SeriesChartType.Line
+            };
+            nuovaserie.EmptyPointStyle.BorderDashStyle = ChartDashStyle.Solid; // select the style you want
+            nuovaserie.EmptyPointStyle.Color = nuovaserie.Color; // setting the color might be required
+            nuovaserie["EmptyPointValue"] = "Average";
 
-            th_ping.IsBackground = true;//inizializza e avvia il thread del ping
-            th_ping.Start(textBox1.Text);
-            listBox1.Items.Add(textBox1.Text);//aggiunge l'indirizzo alla lista
-        }
+            serie.Add(textBox1.Text, nuovaserie);//aggiunge la serie al dizionario
+                this.chart1.Series.Add(serie[textBox1.Text]);//aggiunge la serie al grafico
+
+                th_ping.IsBackground = true;//inizializza e avvia il thread del ping
+                th_ping.Start(textBox1.Text);
+                listBox1.Items.Add(textBox1.Text);//aggiunge l'indirizzo alla lista
+            }
 
         private void fun_ping(object parametri)
         {
@@ -82,7 +99,7 @@ namespace ping
             // InvokeRequired required compares the thread ID of the
             // calling thread to the thread ID of the creating thread.
             // If these threads are different, it returns true.
-            
+            string tempo = DateTime.Now.ToString();
             if (this.chart1.InvokeRequired)
             {
                 SetTextCallback d = new SetTextCallback(SetText);
@@ -91,11 +108,51 @@ namespace ping
             else
             {
                 if (ok) {//ping risposto ok
+                    p_tempo.Add(tempo);
+                    foreach (string elemento in listBox1.Items)
+                    {
+                        if (elemento == ip)
+                        {
+                            lista_punti.Add(new punto { p_ip = elemento, p_ping = ping });
+                        }else
+                        {
+                            lista_punti.Add(new punto { p_ip = elemento, p_ping = null });
+                        }
+                    }
+
+                    chart1.Series.Clear();
+
+                    foreach (string elemento in listBox1.Items)
+                    {
+                        serie[elemento].Points.Clear();
+                        ILookup < string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);
+                        int diff = p_tempo.Count() - l_ping[elemento].Count();
+                        
+                        for (i=0;i<diff;i++)
+                        {
+                            lista_punti.Insert(0, new punto { p_ip = elemento, p_ping = null });
+                        }
+
+                        l_ping = lista_punti.ToLookup(punto => punto.p_ip);
+
+                        long?[] a_punto=new long?[0];
+                        i = 0;
+                        foreach (punto t_punto in l_ping[elemento])
+                        {
+                            Array.Resize(ref a_punto, a_punto.Length + 1);
+                            a_punto[i] = t_punto.p_ping;
+                            i++;
+                        }
+
+                        this.chart1.Series.Add(serie[elemento]);//aggiunge la serie al grafico
+                        this.chart1.Series[elemento].Points.DataBindXY(p_tempo, a_punto);
+                    }
+                    //i++;
+                    //serie[ip].Points.AddXY(i, ping);//inserisce il punto sul grafico
                     //serie[ip].Points.AddXY(DateTime.Now.ToString(), ping);
-                    i++;
-                    serie[ip].Points.AddXY(i, ping);//inserisce il punto sul grafico
                     chart1.Invalidate();
                     serie[ip].Sort(PointSortOrder.Ascending, "X");//ordinamento per asse X
+
                     //chart1.AlignDataPointsByAxisLabel();
                 }
                 else
@@ -109,6 +166,10 @@ namespace ping
         private void Form1_Load(object sender, EventArgs e)
         {
             serie = new Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series>();//inizializza il dizzionario delle serie
+
+            p_tempo = new List<string>();
+            lista_punti = new List<punto>();
+
             serie.Clear();//lo svuota
             chart1.Series.Clear();//svuota il grafico
             chart1.ChartAreas[0].AxisX.Title = "X";//nome assi
