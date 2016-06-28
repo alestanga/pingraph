@@ -29,7 +29,10 @@ namespace ping
 
         delegate void SetTextCallback(string ip, long ping, bool ok);//funzione per aggiornare il grafico
 
-        Point? prevPosition = null;
+        Thread th_ping;
+        ManualResetEvent _event = new ManualResetEvent(true);
+
+        Point? prevPosition = null;//tooltip per il grafico
         ToolTip tooltip = new ToolTip();
 
         public Form1()
@@ -39,9 +42,7 @@ namespace ping
 
         private void button1_Click(object sender, EventArgs e)
         {
-            Thread th_ping = new Thread (new ParameterizedThreadStart(fun_ping));
-
-
+            th_ping = new Thread(new ParameterizedThreadStart(fun_ping));
             var nuovaserie = new System.Windows.Forms.DataVisualization.Charting.Series//configura il prototipo di serie
             {
                 Name = textBox1.Text,//nome della serie
@@ -77,6 +78,7 @@ namespace ping
             int timeout = 10000; //millisecondi
             while (true)//ciclo infinito di ping
             {
+                _event.WaitOne();
                 PingReply reply = pingSender.Send(parametri.ToString(), timeout, buffer, options);
                 if (reply.Status == IPStatus.Success)//risposta ricevuta
                 {
@@ -87,14 +89,13 @@ namespace ping
                 {//timeout
                     this.SetText(parametri.ToString(), reply.RoundtripTime, false);
                 }
-                Thread.Sleep(5000);//intervallo in ms
+                Thread.Sleep(5000);//intervallo in ms tra i ping dell'indirizzo specificato
             }
         }
 
 
         private void SetText(string ip, long ping, bool ok)
         {
-
             // InvokeRequired required compares the thread ID of the
             // calling thread to the thread ID of the creating thread.
             // If these threads are different, it returns true.
@@ -109,29 +110,26 @@ namespace ping
                 int i=0;
                 if (ok) {//ping risposto ok
                     p_tempo.Add(tempo);
-                    foreach (string elemento in listBox1.Items)//controlla tutti gli indirizzi sotto esame
-                    {
-                        if (elemento == ip)
-                        {//aggiunge il valore del ping
-                            lista_punti.Add(new punto { p_ip = elemento, p_ping = ping });
-                        }
-                        else
-                        {//imposta a null i valori di ping per gli indirizzi non pingati da questo thread
-                            lista_punti.Add(new punto { p_ip = elemento, p_ping = null });
-                        }
-                    }
-
                     chart1.Series.Clear();//elimina le serie dal grafico
 
                     foreach (string elemento in listBox1.Items)
                     {//reinserisce le serie
                         serie[elemento].Points.Clear();//svuota i punti della serie
                         ILookup < string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);//cerca i ping di un dato indirizzo
-                        int diff = p_tempo.Count() - l_ping[elemento].Count();//confronta quanti sono rispetto ai ping totali di tutti gli indirizzi
-                        
+                        int diff = p_tempo.Count() - l_ping[elemento].Count() - 1;//confronta quanti sono rispetto ai ping totali di tutti gli indirizzi -1 perchè l'ultimo lo aggiungo alla fine
+                        //MessageBox.Show(elemento + "-"+ diff.ToString());
                         for (i=0;i<diff;i++)
                         {//aggiunge all'inizio dell'elenco dei ping i valori a null per allineare le nuove serie alle vecchie
                             lista_punti.Insert(0, new punto { p_ip = elemento, p_ping = null });
+                        }
+
+                        if (elemento == ip)//inserisce il valore dell'ultimo ping ricevuto
+                        {//aggiunge il valore del ping
+                            lista_punti.Add(new punto { p_ip = elemento, p_ping = ping });
+                        }
+                        else
+                        {//imposta a null i valori di ping per gli indirizzi non pingati da questo thread
+                            lista_punti.Add(new punto { p_ip = elemento, p_ping = null });
                         }
 
                         l_ping = lista_punti.ToLookup(punto => punto.p_ip);//reinizializza la serie dei ping dopo averla allineata
@@ -148,8 +146,8 @@ namespace ping
 
                         this.chart1.Series.Add(serie[elemento]);//aggiunge la serie al grafico
                         this.chart1.Series[elemento].Points.DataBindXY(p_tempo, a_punto);//collega la lista dei tempi e l'array dei ping al grafico
-                        serie[elemento].Sort(PointSortOrder.Ascending, "X");//ordinamento per asse X
                     }
+
                     chart1.Invalidate();
                 }
                 else
@@ -181,12 +179,10 @@ namespace ping
         private void chart1_MouseMove(object sender, MouseEventArgs e)
         {
             var pos = e.Location;
-            if (prevPosition.HasValue && pos == prevPosition.Value)
-                return;
+            if (prevPosition.HasValue && pos == prevPosition.Value) return;
             tooltip.RemoveAll();
             prevPosition = pos;
-            var results = chart1.HitTest(pos.X, pos.Y, false,
-                                            ChartElementType.DataPoint);
+            var results = chart1.HitTest(pos.X, pos.Y, false, ChartElementType.DataPoint);
             foreach (var result in results)
             {
                 if (result.ChartElementType == ChartElementType.DataPoint)
@@ -196,13 +192,10 @@ namespace ping
                     {
                         var pointXPixel = result.ChartArea.AxisX.ValueToPixelPosition(prop.XValue);
                         var pointYPixel = result.ChartArea.AxisY.ValueToPixelPosition(prop.YValues[0]);
-
-                        // check if the cursor is really close to the point (5 pixels around the point)
-                        if (Math.Abs(pos.X - pointXPixel) < 5 &&
-                            Math.Abs(pos.Y - pointYPixel) < 5)
+                        // check if the cursor is really close to the point
+                        if (Math.Abs(pos.X - pointXPixel) < 15 && Math.Abs(pos.Y - pointYPixel) < 15)
                         {
-                            tooltip.Show("X=" + prop.XValue + ", Ping: " + prop.YValues[0], this.chart1,
-                                            pos.X, pos.Y - 15);
+                            tooltip.Show("Istante: " + prop.XValue + ", Ping: " + prop.YValues[0], this.chart1, pos.X, pos.Y - 15);
                         }
                     }
                 }
