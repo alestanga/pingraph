@@ -18,18 +18,16 @@ namespace ping
 
         List<string> p_tempo;
 
-        public class punto
+        public class punto//oggetto dei punti con le proprietà
         {
             public string p_ip { get; set; }
-            public long? p_ping { get; set; }
+            public long? p_ping { get; set; }//permette valori null
         }
 
-        List<punto> lista_punti;
+        List<punto> lista_punti;//lista dei punti
+        Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series> serie;//dizionario delle serie
 
-        delegate void SetTextCallback(string ip, long ping, bool ok);
-        Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series> serie;
-
-        int i;
+        delegate void SetTextCallback(string ip, long ping, bool ok);//funzione per aggiornare il grafico
 
         Point? prevPosition = null;
         ToolTip tooltip = new ToolTip();
@@ -107,59 +105,56 @@ namespace ping
             }
             else
             {
+                int i=0;
                 if (ok) {//ping risposto ok
                     p_tempo.Add(tempo);
-                    foreach (string elemento in listBox1.Items)
+                    foreach (string elemento in listBox1.Items)//controlla tutti gli indirizzi sotto esame
                     {
                         if (elemento == ip)
-                        {
+                        {//aggiunge il valore del ping
                             lista_punti.Add(new punto { p_ip = elemento, p_ping = ping });
-                        }else
-                        {
+                        }
+                        else
+                        {//imposta a null i valori di ping per gli indirizzi non pingati da questo thread
                             lista_punti.Add(new punto { p_ip = elemento, p_ping = null });
                         }
                     }
 
-                    chart1.Series.Clear();
+                    chart1.Series.Clear();//elimina le serie dal grafico
 
                     foreach (string elemento in listBox1.Items)
-                    {
-                        serie[elemento].Points.Clear();
-                        ILookup < string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);
-                        int diff = p_tempo.Count() - l_ping[elemento].Count();
+                    {//reinserisce le serie
+                        serie[elemento].Points.Clear();//svuota i punti della serie
+                        ILookup < string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);//cerca i ping di un dato indirizzo
+                        int diff = p_tempo.Count() - l_ping[elemento].Count();//confronta quanti sono rispetto ai ping totali di tutti gli indirizzi
                         
                         for (i=0;i<diff;i++)
-                        {
+                        {//aggiunge all'inizio dell'elenco dei ping i valori a null per allineare le nuove serie alle vecchie
                             lista_punti.Insert(0, new punto { p_ip = elemento, p_ping = null });
                         }
 
-                        l_ping = lista_punti.ToLookup(punto => punto.p_ip);
+                        l_ping = lista_punti.ToLookup(punto => punto.p_ip);//reinizializza la serie dei ping dopo averla allineata
 
                         long?[] a_punto=new long?[0];
                         i = 0;
+
                         foreach (punto t_punto in l_ping[elemento])
-                        {
+                        {//converte in array la lista di ping ILookup, si potrà fare in modo più efficiente?
                             Array.Resize(ref a_punto, a_punto.Length + 1);
                             a_punto[i] = t_punto.p_ping;
                             i++;
                         }
 
                         this.chart1.Series.Add(serie[elemento]);//aggiunge la serie al grafico
-                        this.chart1.Series[elemento].Points.DataBindXY(p_tempo, a_punto);
+                        this.chart1.Series[elemento].Points.DataBindXY(p_tempo, a_punto);//collega la lista dei tempi e l'array dei ping al grafico
+                        serie[elemento].Sort(PointSortOrder.Ascending, "X");//ordinamento per asse X
                     }
-                    //i++;
-                    //serie[ip].Points.AddXY(i, ping);//inserisce il punto sul grafico
-                    //serie[ip].Points.AddXY(DateTime.Now.ToString(), ping);
                     chart1.Invalidate();
-                    serie[ip].Sort(PointSortOrder.Ascending, "X");//ordinamento per asse X
-
-                    //chart1.AlignDataPointsByAxisLabel();
                 }
                 else
                 {//timeout
                     
                 }
-                //chart1.AlignDataPointsByAxisLabel();
             }
         }
 
@@ -167,13 +162,13 @@ namespace ping
         {
             serie = new Dictionary<string, System.Windows.Forms.DataVisualization.Charting.Series>();//inizializza il dizzionario delle serie
 
-            p_tempo = new List<string>();
+            p_tempo = new List<string>();//inizializza le serie
             lista_punti = new List<punto>();
 
             serie.Clear();//lo svuota
             chart1.Series.Clear();//svuota il grafico
-            chart1.ChartAreas[0].AxisX.Title = "X";//nome assi
-            chart1.ChartAreas[0].AxisY.Title = "Y";//nome assi
+            chart1.ChartAreas[0].AxisX.Title = "Istante";//nome assi
+            chart1.ChartAreas[0].AxisY.Title = "Ping";//nome assi
         }
 
         private Color GetRandomColor()//ritorna un colore random
