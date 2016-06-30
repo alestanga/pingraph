@@ -32,9 +32,6 @@ namespace ping
         Thread th_ping;
         ManualResetEvent _event = new ManualResetEvent(true);
 
-        Point? prevPosition = null;//tooltip per il grafico
-        ToolTip tooltip = new ToolTip();
-
         public Form1()
         {
             InitializeComponent();
@@ -57,12 +54,12 @@ namespace ping
             nuovaserie["EmptyPointValue"] = "Average";
 
             serie.Add(textBox1.Text, nuovaserie);//aggiunge la serie al dizionario
-                this.chart1.Series.Add(serie[textBox1.Text]);//aggiunge la serie al grafico
+            this.chart1.Series.Add(serie[textBox1.Text]);//aggiunge la serie al grafico
 
-                th_ping.IsBackground = true;//inizializza e avvia il thread del ping
-                th_ping.Start(textBox1.Text);
-                listBox1.Items.Add(textBox1.Text);//aggiunge l'indirizzo alla lista
-            }
+            th_ping.IsBackground = true;//inizializza e avvia il thread del ping
+            th_ping.Start(textBox1.Text);
+            listBox1.Items.Add(textBox1.Text);//aggiunge l'indirizzo alla lista
+        }
 
         private void fun_ping(object parametri)
         {
@@ -71,7 +68,6 @@ namespace ping
             // Use the default Ttl value which is 128,
             // but change the fragmentation behavior.
             options.DontFragment = true;
-
             // Create a buffer of 32 bytes of data to be transmitted.
             string data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
             byte[] buffer = Encoding.ASCII.GetBytes(data);
@@ -107,18 +103,18 @@ namespace ping
             }
             else
             {
-                int i=0;
-                if (ok) {//ping risposto ok
+                int i = 0;
+                if (ok)
+                {//ping risposto ok
                     p_tempo.Add(tempo);
                     chart1.Series.Clear();//elimina le serie dal grafico
 
                     foreach (string elemento in listBox1.Items)
                     {//reinserisce le serie
                         serie[elemento].Points.Clear();//svuota i punti della serie
-                        ILookup < string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);//cerca i ping di un dato indirizzo
+                        ILookup<string, punto> l_ping = lista_punti.ToLookup(punto => punto.p_ip);//cerca i ping di un dato indirizzo
                         int diff = p_tempo.Count() - l_ping[elemento].Count() - 1;//confronta quanti sono rispetto ai ping totali di tutti gli indirizzi -1 perchè l'ultimo lo aggiungo alla fine
-                        //MessageBox.Show(elemento + "-"+ diff.ToString());
-                        for (i=0;i<diff;i++)
+                        for (i = 0; i < diff; i++)
                         {//aggiunge all'inizio dell'elenco dei ping i valori a null per allineare le nuove serie alle vecchie
                             lista_punti.Insert(0, new punto { p_ip = elemento, p_ping = null });
                         }
@@ -134,7 +130,7 @@ namespace ping
 
                         l_ping = lista_punti.ToLookup(punto => punto.p_ip);//reinizializza la serie dei ping dopo averla allineata
 
-                        long?[] a_punto=new long?[0];
+                        long?[] a_punto = new long?[0];
                         i = 0;
 
                         foreach (punto t_punto in l_ping[elemento])
@@ -147,12 +143,11 @@ namespace ping
                         this.chart1.Series.Add(serie[elemento]);//aggiunge la serie al grafico
                         this.chart1.Series[elemento].Points.DataBindXY(p_tempo, a_punto);//collega la lista dei tempi e l'array dei ping al grafico
                     }
-
                     chart1.Invalidate();
                 }
                 else
                 {//timeout
-                    
+
                 }
             }
         }
@@ -168,6 +163,7 @@ namespace ping
             chart1.Series.Clear();//svuota il grafico
             chart1.ChartAreas[0].AxisX.Title = "Istante";//nome assi
             chart1.ChartAreas[0].AxisY.Title = "Ping";//nome assi
+            chart1.BringToFront();
         }
 
         private Color GetRandomColor()//ritorna un colore random
@@ -176,29 +172,15 @@ namespace ping
             return Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255));
         }
 
-        private void chart1_MouseMove(object sender, MouseEventArgs e)
+        private void chart1_GetToolTipText(object sender, ToolTipEventArgs e)
         {
-            var pos = e.Location;
-            if (prevPosition.HasValue && pos == prevPosition.Value) return;
-            tooltip.RemoveAll();
-            prevPosition = pos;
-            var results = chart1.HitTest(pos.X, pos.Y, false, ChartElementType.DataPoint);
-            foreach (var result in results)
+            // Check selected chart element and set tooltip text for it
+            switch (e.HitTestResult.ChartElementType)
             {
-                if (result.ChartElementType == ChartElementType.DataPoint)
-                {
-                    var prop = result.Object as DataPoint;
-                    if (prop != null)
-                    {
-                        var pointXPixel = result.ChartArea.AxisX.ValueToPixelPosition(prop.XValue);
-                        var pointYPixel = result.ChartArea.AxisY.ValueToPixelPosition(prop.YValues[0]);
-                        // check if the cursor is really close to the point
-                        if (Math.Abs(pos.X - pointXPixel) < 15 && Math.Abs(pos.Y - pointYPixel) < 15)
-                        {
-                            tooltip.Show("Istante: " + prop.XValue + ", Ping: " + prop.YValues[0], this.chart1, pos.X, pos.Y - 15);
-                        }
-                    }
-                }
+                case ChartElementType.DataPoint:
+                    var dataPoint = e.HitTestResult.Series.Points[e.HitTestResult.PointIndex];
+                    e.Text = "Istante: " + dataPoint.AxisLabel.ToString() + ", Ping: " +  dataPoint.YValues[0].ToString();
+                    break;
             }
         }
     }
