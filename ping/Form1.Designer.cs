@@ -1,6 +1,6 @@
 ﻿namespace ping
 {
-    partial class Form1
+    partial class frm_main
     {
         /// <summary>
         /// Required designer variable.
@@ -99,15 +99,15 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Dati";
             // 
-            // Form1
+            // frm_main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1058, 582);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.chart1);
-            this.Name = "Form1";
-            this.Text = "Form1";
+            this.Name = "frm_main";
+            this.Text = "pingraph";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.chart1)).EndInit();
             this.groupBox1.ResumeLayout(false);

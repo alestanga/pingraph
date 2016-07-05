@@ -13,7 +13,7 @@ using System.Windows.Forms.DataVisualization.Charting;
 
 namespace ping
 {
-    public partial class Form1 : Form
+    public partial class frm_main : Form
     {
 
         List<string> p_tempo;
@@ -32,7 +32,7 @@ namespace ping
         Thread th_ping;
         ManualResetEvent _event = new ManualResetEvent(true);
 
-        public Form1()
+        public frm_main()
         {
             InitializeComponent();
         }
